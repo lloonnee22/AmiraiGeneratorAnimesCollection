@@ -53,8 +53,9 @@ function editor() {
         searching: false,
         searchError: "",
 
-        // выделение карточки
+        // выделение карточки / арта
         selectedCardUid: null,
+        selectedArtUid: null,
         dragInfo: null,
 
         // перестановка карточек в списке (drag&drop)
@@ -93,6 +94,13 @@ function editor() {
                 showUrl: true,
                 siteUrl: "amiria.online",
                 bg: BG_PRESETS["Чёрный (бренд)"],
+                // крупная цифра-обложка
+                showNumber: true,
+                bigNumber: "10",
+                numStyle: "solid", // solid | outline | scribble | shadow
+                numColor: "#ff3333",
+                numPos: "tl", // tl | tr | center
+                arts: [],
             };
         },
 
@@ -112,6 +120,7 @@ function editor() {
                 pad: 56,
                 headerH: 200,
                 cards: [],
+                arts: [],
             };
         },
 
@@ -252,6 +261,55 @@ function editor() {
             this.selectedCardUid = card.uid;
         },
 
+        // ---- арты (загруженные пользователем картинки) ----
+        get selectedArt() {
+            if (!this.slide || !this.slide.arts) return null;
+            return this.slide.arts.find((a) => a.uid === this.selectedArtUid) || null;
+        },
+
+        addArtFiles(fileList) {
+            const files = Array.from(fileList || []).filter((f) => f.type.startsWith("image/"));
+            const { w: W } = this.dims;
+            files.forEach((file) => {
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    const src = ev.target.result;
+                    const img = new Image();
+                    img.onload = () => {
+                        const aspect = img.naturalWidth / img.naturalHeight || 1;
+                        const w = Math.min(480, Math.round(W * 0.45));
+                        const art = {
+                            uid: uid(),
+                            kind: "art",
+                            src,
+                            aspect,
+                            w,
+                            x: this.snapVal(W - w - 40),
+                            y: this.snapVal(60),
+                        };
+                        if (!this.slide.arts) this.slide.arts = [];
+                        this.slide.arts.push(art);
+                        this.selectedArtUid = art.uid;
+                    };
+                    img.src = src;
+                };
+                reader.readAsDataURL(file);
+            });
+        },
+
+        removeArt(artUid) {
+            const s = this.slide;
+            if (!s.arts) return;
+            s.arts = s.arts.filter((a) => a.uid !== artUid);
+            if (this.selectedArtUid === artUid) this.selectedArtUid = null;
+        },
+
+        bringFrontArt(art) {
+            const s = this.slide;
+            s.arts = s.arts.filter((a) => a.uid !== art.uid).concat(art);
+            this.selectedArtUid = art.uid;
+        },
+
         // Авто-раскладка карточек ровной сеткой cols x rows.
         // Все величины кратны шагу сетки → края карточек ложатся ровно на линии,
         // а шаг между карточками одинаковый (привязка к сетке + равномерность).
@@ -285,19 +343,33 @@ function editor() {
             });
         },
 
-        // ---- drag & resize ----
-        startDrag(e, card, mode) {
+        // высота элемента в координатах слайда: арт — по своему аспекту,
+        // карточка — постер 2:3 (+ подпись)
+        elHeight(obj) {
+            if (obj && obj.kind === "art") return obj.w / (obj.aspect || 1);
+            return this.cardHeight(obj);
+        },
+
+        // ---- drag & resize (общий для карточек и артов) ----
+        startDrag(e, obj, mode, kind = "card") {
             if (e.button !== undefined && e.button !== 0) return;
-            this.selectedCardUid = card.uid;
-            this.bringFront(card);
+            if (kind === "art") {
+                this.selectedArtUid = obj.uid;
+                this.selectedCardUid = null;
+                this.bringFrontArt(obj);
+            } else {
+                this.selectedCardUid = obj.uid;
+                this.selectedArtUid = null;
+                this.bringFront(obj);
+            }
             this.dragInfo = {
-                card,
+                obj,
                 mode, // 'move' | 'resize'
                 startX: e.clientX,
                 startY: e.clientY,
-                origX: card.x,
-                origY: card.y,
-                origW: card.w,
+                origX: obj.x,
+                origY: obj.y,
+                origW: obj.w,
             };
         },
 
@@ -310,15 +382,15 @@ function editor() {
             if (d.mode === "move") {
                 let nx = this.snapVal(d.origX + dx);
                 let ny = this.snapVal(d.origY + dy);
-                const cardH = this.cardHeight(d.card);
-                nx = Math.max(0, Math.min(nx, W - d.card.w));
-                ny = Math.max(0, Math.min(ny, H - cardH));
-                d.card.x = nx;
-                d.card.y = ny;
+                const oh = this.elHeight(d.obj);
+                nx = Math.max(0, Math.min(nx, W - d.obj.w));
+                ny = Math.max(0, Math.min(ny, H - oh));
+                d.obj.x = nx;
+                d.obj.y = ny;
             } else {
                 let nw = this.snapVal(d.origW + dx);
-                nw = Math.max(120, Math.min(nw, W));
-                d.card.w = nw;
+                nw = Math.max(80, Math.min(nw, W));
+                d.obj.w = nw;
             }
         },
 
@@ -379,7 +451,9 @@ function editor() {
             this.exporting = true;
             const savedCurrent = this.current;
             const savedSel = this.selectedCardUid;
+            const savedArtSel = this.selectedArtUid;
             this.selectedCardUid = null;
+            this.selectedArtUid = null;
             try {
                 await document.fonts.ready;
                 for (let k = 0; k < indices.length; k++) {
@@ -406,6 +480,7 @@ function editor() {
             } finally {
                 this.current = savedCurrent;
                 this.selectedCardUid = savedSel;
+                this.selectedArtUid = savedArtSel;
                 this.exporting = false;
                 this.$nextTick(() => this.fitStage());
                 setTimeout(() => (this.toast = ""), 2500);

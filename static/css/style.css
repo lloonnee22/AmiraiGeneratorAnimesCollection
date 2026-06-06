@@ -288,6 +288,33 @@ input[type="color"] {
     overflow: hidden;
 }
 
+.seg-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    width: 100%;
+    gap: 1px;
+}
+
+.seg-wrap button {
+    flex: 1 1 40%;
+}
+
+.swatch {
+    width: 30px;
+    height: 30px;
+    border-radius: 6px;
+    border: 1px solid var(--line);
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.big-num-input {
+    font-size: 28px;
+    font-weight: 900;
+    text-align: center;
+    letter-spacing: 0.05em;
+}
+
 .seg button {
     border: none;
     background: transparent;
@@ -582,6 +609,143 @@ input[type="color"] {
     color: var(--brand);
 }
 
+/* ---------- Обложка (титульный слайд) ---------- */
+
+.cover {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+}
+
+.cover-top {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 48px 56px;
+    z-index: 10;
+}
+
+.cover-logo {
+    width: 84px;
+    height: 84px;
+    object-fit: contain;
+}
+
+.cover .site-url {
+    font-size: 30px;
+    font-weight: 900;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--brand);
+}
+
+.cover-number {
+    position: absolute;
+    z-index: 5;
+    font-weight: 900;
+    font-size: 400px;
+    line-height: 0.78;
+    letter-spacing: -0.04em;
+    font-variant-numeric: lining-nums;
+}
+
+.cover-number span {
+    display: inline-block;
+}
+
+.num-pos-tl {
+    top: 150px;
+    left: 56px;
+}
+
+.num-pos-tr {
+    top: 150px;
+    right: 56px;
+    text-align: right;
+}
+
+.num-pos-center {
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+/* стили цифры */
+.num-outline span {
+    color: transparent;
+    -webkit-text-stroke-width: 11px;
+}
+
+.num-shadow span {
+    text-shadow: 16px 16px 0 rgba(0, 0, 0, 0.5);
+}
+
+.cover-number .scribble {
+    position: absolute;
+    left: -7%;
+    top: -10%;
+    width: 114%;
+    height: 122%;
+    overflow: visible;
+    pointer-events: none;
+    z-index: 2;
+}
+
+.cover-bottom {
+    position: absolute;
+    left: 56px;
+    right: 56px;
+    bottom: 72px;
+    z-index: 10;
+}
+
+.cover-bottom h1 {
+    margin: 0;
+    font-size: 82px;
+    font-weight: 900;
+    line-height: 1.0;
+    text-transform: uppercase;
+    letter-spacing: 0.01em;
+    text-shadow: 0 4px 22px rgba(0, 0, 0, 0.55);
+}
+
+.cover-bottom .subtitle {
+    margin-top: 18px;
+    font-size: 38px;
+    font-weight: 500;
+    opacity: 0.85;
+}
+
+/* ---------- Арт (загруженная картинка) ---------- */
+
+.art {
+    position: absolute;
+    cursor: grab;
+    z-index: 2;
+    touch-action: none;
+}
+
+.art img {
+    width: 100%;
+    height: auto;
+    display: block;
+    pointer-events: none;
+}
+
+.art.dragging {
+    cursor: grabbing;
+    z-index: 999 !important;
+}
+
+.art.selected {
+    outline: 4px solid var(--brand);
+    outline-offset: 0;
+}
+
 /* ---------- Anime card on slide ---------- */
 
 .acard {
@@ -658,12 +822,12 @@ input[type="color"] {
 
 /* hide editor-only chrome during export */
 .exporting .grid-overlay,
-.exporting .acard.selected,
 .exporting .resize-handle {
     display: none !important;
 }
 
-.exporting .acard.selected {
+.exporting .acard.selected,
+.exporting .art.selected {
     outline: none !important;
 }
 

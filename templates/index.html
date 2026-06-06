@@ -57,37 +57,80 @@
 
             <!-- ====== НАСТРОЙКИ ТИТУЛЬНОГО СЛАЙДА ====== -->
             <template x-if="slide && slide.type==='title'">
-                <section class="section">
-                    <h3>Титульный слайд</h3>
-                    <div class="field">
-                        <label>Название подборки</label>
-                        <textarea x-model="slide.title"></textarea>
-                    </div>
-                    <div class="field">
-                        <label>Подзаголовок</label>
-                        <input type="text" x-model="slide.subtitle" />
-                    </div>
-                    <div class="field">
-                        <label>Ссылка на сайт (внизу)</label>
-                        <input type="text" x-model="slide.siteUrl" />
-                    </div>
-                    <div class="row" style="gap:16px">
-                        <label class="row" style="gap:6px;cursor:pointer">
-                            <input type="checkbox" x-model="slide.showLogo" /> Логотип
-                        </label>
-                        <label class="row" style="gap:6px;cursor:pointer">
-                            <input type="checkbox" x-model="slide.showUrl" /> URL
-                        </label>
-                    </div>
-                    <div class="field" style="margin-top:10px">
-                        <label>Фон</label>
-                        <select x-model="slide.bg">
-                            <template x-for="(val,name) in bgPresets" :key="name">
-                                <option :value="val" x-text="name"></option>
-                            </template>
-                        </select>
-                    </div>
-                </section>
+                <div style="display:flex;flex-direction:column;gap:14px">
+
+                    <section class="section">
+                        <h3>Цифра-обложка</h3>
+                        <div class="row" style="justify-content:space-between;margin-bottom:8px">
+                            <label class="row" style="gap:6px;cursor:pointer">
+                                <input type="checkbox" x-model="slide.showNumber" /> Показывать цифру
+                            </label>
+                        </div>
+                        <div class="field">
+                            <label>Число (просто меняй тут)</label>
+                            <input type="text" x-model="slide.bigNumber" class="big-num-input"
+                                placeholder="10" />
+                        </div>
+                        <div class="field">
+                            <label>Стиль цифры</label>
+                            <div class="seg seg-wrap">
+                                <button :class="{active: slide.numStyle==='solid'}" @click="slide.numStyle='solid'">Заливка</button>
+                                <button :class="{active: slide.numStyle==='outline'}" @click="slide.numStyle='outline'">Контур</button>
+                                <button :class="{active: slide.numStyle==='scribble'}" @click="slide.numStyle='scribble'">Скетч</button>
+                                <button :class="{active: slide.numStyle==='shadow'}" @click="slide.numStyle='shadow'">Тень</button>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label>Позиция</label>
+                            <div class="seg seg-wrap">
+                                <button :class="{active: slide.numPos==='tl'}" @click="slide.numPos='tl'">↖ Слева</button>
+                                <button :class="{active: slide.numPos==='tr'}" @click="slide.numPos='tr'">↗ Справа</button>
+                                <button :class="{active: slide.numPos==='center'}" @click="slide.numPos='center'">● Центр</button>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label>Цвет цифры</label>
+                            <div class="row">
+                                <input type="color" x-model="slide.numColor" />
+                                <template x-for="c in ['#ff3333','#ffd400','#ffffff','#22c55e','#2AABEE']" :key="c">
+                                    <button class="swatch" :style="`background:${c}`" @click="slide.numColor=c"></button>
+                                </template>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="section">
+                        <h3>Тексты</h3>
+                        <div class="field">
+                            <label>Название подборки</label>
+                            <textarea x-model="slide.title"></textarea>
+                        </div>
+                        <div class="field">
+                            <label>Подзаголовок</label>
+                            <input type="text" x-model="slide.subtitle" />
+                        </div>
+                        <div class="field">
+                            <label>Ссылка на сайт</label>
+                            <input type="text" x-model="slide.siteUrl" />
+                        </div>
+                        <div class="row" style="gap:16px">
+                            <label class="row" style="gap:6px;cursor:pointer">
+                                <input type="checkbox" x-model="slide.showLogo" /> Логотип
+                            </label>
+                            <label class="row" style="gap:6px;cursor:pointer">
+                                <input type="checkbox" x-model="slide.showUrl" /> URL
+                            </label>
+                        </div>
+                        <div class="field" style="margin-top:10px">
+                            <label>Фон</label>
+                            <select x-model="slide.bg">
+                                <template x-for="(val,name) in bgPresets" :key="name">
+                                    <option :value="val" x-text="name"></option>
+                                </template>
+                            </select>
+                        </div>
+                    </section>
+                </div>
             </template>
 
             <!-- ====== НАСТРОЙКИ СЛАЙДА-СЕТКИ ====== -->
@@ -206,6 +249,41 @@
                     </template>
                 </div>
             </template>
+
+            <!-- ====== АРТЫ / КАРТИНКИ (для любого слайда) ====== -->
+            <template x-if="slide">
+                <section class="section">
+                    <h3>Арты / картинки</h3>
+                    <label class="btn btn-primary" style="width:100%">
+                        + Загрузить арт
+                        <input type="file" accept="image/*" multiple hidden
+                            @change="addArtFiles($event.target.files); $event.target.value=''" />
+                    </label>
+                    <p class="hint">Добавь свою картинку (постер, скрин, арт) и двигай её по слайду — например сбоку. Тянется за угол, прилипает к сетке.</p>
+
+                    <template x-if="slide.arts && slide.arts.length">
+                        <div class="card-list">
+                            <template x-for="a in slide.arts" :key="a.uid">
+                                <div class="card-row" :class="{selected: a.uid===selectedArtUid}"
+                                    @click="selectedArtUid=a.uid; selectedCardUid=null">
+                                    <img :src="a.src" alt="" style="width:34px;height:34px;object-fit:cover" />
+                                    <span class="muted" style="flex:1">арт</span>
+                                    <button class="btn btn-icon btn-sm" @click.stop="removeArt(a.uid)" title="Удалить">✕</button>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+
+                    <template x-if="selectedArt">
+                        <div class="field" style="margin-top:10px">
+                            <label>Размер арта: <span x-text="selectedArt ? Math.round(selectedArt.w) : ''"></span> px</label>
+                            <input type="range" min="80" max="1080" step="10"
+                                :value="selectedArt ? selectedArt.w : 300"
+                                @input="selectedArt && (selectedArt.w = parseInt($event.target.value))" />
+                        </div>
+                    </template>
+                </section>
+            </template>
         </aside>
 
         <!-- ================= СЦЕНА ================= -->
@@ -220,7 +298,8 @@
                     · <span x-text="dims.w + '×' + dims.h"></span></span>
             </div>
 
-            <div class="stage-canvas-wrap" x-ref="canvasWrap" @pointerdown.self="selectedCardUid=null">
+            <div class="stage-canvas-wrap" x-ref="canvasWrap"
+                @pointerdown.self="selectedCardUid=null; selectedArtUid=null">
 
                 <!-- ПОЛНОРАЗМЕРНЫЙ СЛАЙД -->
                 <div class="slide" x-ref="slideNode" :class="{exporting: exporting}"
@@ -228,13 +307,44 @@
                             `transform:translate(-50%,-50%) scale(${scale});` +
                             `background:${slide ? slide.bg : '#111'};`">
 
-                    <!-- ТИТУЛЬНЫЙ -->
+                    <!-- СЛОЙ АРТОВ (под контентом, для любого слайда) -->
+                    <template x-for="a in (slide && slide.arts) ? slide.arts : []" :key="a.uid">
+                        <div class="art"
+                            :class="{selected: a.uid===selectedArtUid, dragging: dragInfo && dragInfo.obj===a}"
+                            :style="`left:${a.x}px;top:${a.y}px;width:${a.w}px`"
+                            @pointerdown.stop="startDrag($event, a, 'move', 'art')">
+                            <img :src="a.src" alt="" draggable="false" />
+                            <div class="resize-handle"
+                                @pointerdown.stop="startDrag($event, a, 'resize', 'art')"></div>
+                        </div>
+                    </template>
+
+                    <!-- ТИТУЛЬНЫЙ (обложка) -->
                     <template x-if="slide && slide.type==='title'">
-                        <div class="slide-title">
-                            <img class="logo" x-show="slide.showLogo" src="/img/logo.png" alt="" />
-                            <h1 x-text="slide.title"></h1>
-                            <div class="subtitle" x-show="slide.subtitle" x-text="slide.subtitle"></div>
-                            <div class="site-url" x-show="slide.showUrl" x-text="slide.siteUrl"></div>
+                        <div class="cover">
+                            <div class="cover-top">
+                                <img class="cover-logo" x-show="slide.showLogo" src="/img/logo.png" alt="" />
+                                <div class="site-url" x-show="slide.showUrl" x-text="slide.siteUrl"></div>
+                            </div>
+
+                            <div class="cover-number" x-show="slide.showNumber"
+                                :class="'num-pos-'+slide.numPos+' num-'+slide.numStyle"
+                                :style="slide.numStyle==='outline'
+                                    ? `-webkit-text-stroke-color:${slide.numColor}`
+                                    : `color:${slide.numColor}`">
+                                <span x-text="slide.bigNumber"></span>
+                                <svg class="scribble" x-show="slide.numStyle==='scribble'"
+                                    viewBox="0 0 620 380" preserveAspectRatio="none" aria-hidden="true">
+                                    <path d="M70 250 C30 180 60 90 200 70 C360 48 560 70 560 160 C560 250 420 300 250 300 C120 300 40 250 90 170 C140 95 330 70 470 95"
+                                        fill="none" stroke="#ffffff" stroke-width="9"
+                                        stroke-linecap="round" stroke-linejoin="round" />
+                                </svg>
+                            </div>
+
+                            <div class="cover-bottom">
+                                <h1 x-text="slide.title"></h1>
+                                <div class="subtitle" x-show="slide.subtitle" x-text="slide.subtitle"></div>
+                            </div>
                         </div>
                     </template>
 
@@ -251,7 +361,7 @@
 
                             <template x-for="(c,idx) in slide.cards" :key="c.uid">
                                 <div class="acard"
-                                    :class="{selected: c.uid===selectedCardUid, dragging: dragInfo && dragInfo.card===c}"
+                                    :class="{selected: c.uid===selectedCardUid, dragging: dragInfo && dragInfo.obj===c}"
                                     :style="`left:${c.x}px;top:${c.y}px;width:${c.w}px`"
                                     @pointerdown.stop="startDrag($event, c, 'move')">
                                     <div class="rank" x-show="slide.showRank"
