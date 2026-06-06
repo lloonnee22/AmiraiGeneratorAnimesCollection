@@ -239,18 +239,35 @@ function editor() {
         },
 
         // Авто-раскладка карточек ровной сеткой cols x rows.
+        // Все величины кратны шагу сетки → края карточек ложатся ровно на линии,
+        // а шаг между карточками одинаковый (привязка к сетке + равномерность).
         autoArrange() {
             const s = this.slide;
             if (!s || s.type !== "grid" || !s.cards.length) return;
             const { w: W } = this.dims;
+            const g = this.snap ? this.gridSize : 1;
+            const toGrid = (v) => Math.round(v / g) * g;
+
             const cols = Math.max(1, s.cols);
-            const cardW = Math.floor((W - 2 * s.pad - (cols - 1) * s.gap) / cols);
+            const pad = toGrid(s.pad);
+            const gap = toGrid(s.gap);
+            const headerH = toGrid(s.headerH);
+
+            // ширина карточки, округлённая вниз до кратной шагу сетки
+            let cardW = Math.floor((W - 2 * pad - (cols - 1) * gap) / cols);
+            cardW = Math.max(g, Math.floor(cardW / g) * g);
+
+            // единый шаг по X и Y (кратный сетке) → ряды/колонки равномерны
+            const pitchX = cardW + gap;
+            const rowH = toGrid(this.cardHeight({ w: cardW }, s));
+            const pitchY = rowH + gap;
+
             s.cards.forEach((card, i) => {
                 const col = i % cols;
                 const row = Math.floor(i / cols);
                 card.w = cardW;
-                card.x = s.pad + col * (cardW + s.gap);
-                card.y = s.headerH + row * (this.cardHeight({ ...card, w: cardW }, s) + s.gap);
+                card.x = pad + col * pitchX;
+                card.y = headerH + row * pitchY;
             });
         },
 
