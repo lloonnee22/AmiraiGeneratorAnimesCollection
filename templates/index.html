@@ -176,11 +176,17 @@
                         <h3>Карточки (<span x-text="slide.cards.length"></span>)</h3>
                         <div class="card-list">
                             <template x-for="(c,idx) in slide.cards" :key="c.uid">
-                                <div class="card-row" :class="{selected: c.uid===selectedCardUid}"
-                                    @click="selectCard(c.uid)">
+                                <div class="card-row" draggable="true"
+                                    :class="{selected: c.uid===selectedCardUid, 'drag-src': cardDragIdx===idx, 'drag-over': cardOverIdx===idx}"
+                                    @click="selectCard(c.uid)"
+                                    @dragstart="cardDragIdx=idx"
+                                    @dragover.prevent="cardOverIdx=idx"
+                                    @drop.prevent="dropCard(idx)"
+                                    @dragend="cardDragIdx=null; cardOverIdx=null">
+                                    <span class="drag-handle" title="Перетащи, чтобы поменять местами">⠿</span>
                                     <span class="muted" x-text="idx+1"></span>
-                                    <img :src="c.poster" alt="" />
-                                    <input type="text" x-model="c.name" @click.stop />
+                                    <img :src="c.poster" alt="" draggable="false" />
+                                    <input type="text" x-model="c.name" @click.stop draggable="false" />
                                     <button class="btn btn-icon btn-sm" @click.stop="removeCard(c.uid)" title="Удалить">✕</button>
                                 </div>
                             </template>
@@ -222,10 +228,6 @@
                             `transform:translate(-50%,-50%) scale(${scale});` +
                             `background:${slide ? slide.bg : '#111'};`">
 
-                    <!-- сетка -->
-                    <div class="grid-overlay" x-show="showGrid && !exporting"
-                        :style="`background:${gridBg}`"></div>
-
                     <!-- ТИТУЛЬНЫЙ -->
                     <template x-if="slide && slide.type==='title'">
                         <div class="slide-title">
@@ -266,6 +268,11 @@
                         </div>
                     </template>
                 </div>
+
+                <!-- сетка в экранном пространстве (поверх слайда, не масштабируется,
+                     поэтому линии видны в любом формате; в экспорт не попадает) -->
+                <div class="grid-overlay-screen" x-show="showGrid"
+                    :style="`width:${dims.w*scale}px;height:${dims.h*scale}px;background:${gridBgScreen}`"></div>
             </div>
 
             <!-- ================= ЛЕНТА СЛАЙДОВ ================= -->

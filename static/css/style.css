@@ -387,6 +387,29 @@ input[type="color"] {
     border-color: var(--brand);
 }
 
+.card-row.drag-src {
+    opacity: 0.4;
+}
+
+.card-row.drag-over {
+    border-color: var(--brand);
+    box-shadow: 0 -2px 0 var(--brand) inset;
+}
+
+.card-row .drag-handle {
+    cursor: grab;
+    color: var(--muted);
+    font-size: 16px;
+    line-height: 1;
+    padding: 0 2px;
+    user-select: none;
+    flex-shrink: 0;
+}
+
+.card-row .drag-handle:active {
+    cursor: grabbing;
+}
+
 .card-row img {
     width: 28px;
     height: 40px;
@@ -457,6 +480,16 @@ input[type="color"] {
     inset: 0;
     pointer-events: none;
     z-index: 50;
+}
+
+/* сетка в экранном пространстве — поверх слайда, центрирована так же */
+.grid-overlay-screen {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    z-index: 5;
 }
 
 /* ---------- Slide content ---------- */

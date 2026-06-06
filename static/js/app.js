@@ -55,6 +55,10 @@ function editor() {
         selectedCardUid: null,
         dragInfo: null,
 
+        // перестановка карточек в списке (drag&drop)
+        cardDragIdx: null,
+        cardOverIdx: null,
+
         // экспорт
         exporting: false,
         toast: "",
@@ -116,12 +120,13 @@ function editor() {
         get slide() {
             return this.slides[this.current];
         },
-        get gridBg() {
-            // overlay сетки как повторяющийся фон
-            const g = this.gridSize;
+        get gridBgScreen() {
+            // overlay сетки в ЭКРАННЫХ px (шаг * масштаб),
+            // чтобы линии 1px были чёткими при любом формате/масштабе
+            const g = Math.max(2, this.gridSize * this.scale);
             return (
-                `linear-gradient(rgba(255,255,255,.10) 1px, transparent 1px) 0 0/${g}px ${g}px,` +
-                `linear-gradient(90deg, rgba(255,255,255,.10) 1px, transparent 1px) 0 0/${g}px ${g}px`
+                `linear-gradient(rgba(255,255,255,.14) 1px, transparent 1px) 0 0/${g}px ${g}px,` +
+                `linear-gradient(90deg, rgba(255,255,255,.14) 1px, transparent 1px) 0 0/${g}px ${g}px`
             );
         },
 
@@ -196,6 +201,19 @@ function editor() {
             const s = this.slide;
             s.cards = s.cards.filter((c) => c.uid !== cardUid);
             if (this.selectedCardUid === cardUid) this.selectedCardUid = null;
+            this.autoArrange();
+        },
+
+        // Перестановка карточек в списке: перенести с from на target,
+        // затем заново разложить по сетке (обновятся номера и позиции).
+        dropCard(target) {
+            const from = this.cardDragIdx;
+            this.cardDragIdx = null;
+            this.cardOverIdx = null;
+            if (from === null || from === target) return;
+            const arr = this.slide.cards;
+            const [moved] = arr.splice(from, 1);
+            arr.splice(target, 0, moved);
             this.autoArrange();
         },
 
