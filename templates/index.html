@@ -190,22 +190,27 @@
                     </section>
 
                     <section class="section">
-                        <h3>Боковые надписи</h3>
+                        <h3>Низ слайда (призыв + Telegram)</h3>
                         <label class="row" style="gap:6px;cursor:pointer;margin-bottom:8px">
-                            <input type="checkbox" x-model="slide.showSides" @change="autoArrange()" /> Показывать по бокам
+                            <input type="checkbox" x-model="slide.showSides" @change="autoArrange()" /> Показывать нижнюю полосу
                         </label>
                         <div class="field">
-                            <label>Слева (призыв)</label>
+                            <label>Призыв (справа снизу)</label>
                             <input type="text" x-model="slide.sideText" />
                         </div>
                         <div class="field">
-                            <label>Справа (Telegram)</label>
+                            <label>Telegram (по центру снизу)</label>
                             <input type="text" x-model="slide.tgHandle" />
                         </div>
+                        <p class="hint">Под призывом красным показывается сайт (поле «Ссылка на сайт»).</p>
                     </section>
 
                     <section class="section">
                         <h3>Раскладка</h3>
+                        <label class="row" style="gap:6px;cursor:pointer;margin-bottom:10px">
+                            <input type="checkbox" x-model="slide.equalSize" @change="slide.equalSize && autoArrange()" />
+                            Все карточки одного размера
+                        </label>
                         <div class="field">
                             <label>Колонок: <span x-text="slide.cols"></span></label>
                             <input type="range" min="1" max="4" step="1" x-model.number="slide.cols"
@@ -227,7 +232,7 @@
                                 @input="autoArrange()" />
                         </div>
                         <button class="btn" style="width:100%" @click="autoArrange()">⊞ Разложить по сетке</button>
-                        <p class="hint">Карточки можно свободно двигать мышкой — они прилипают к сетке. Угол карточки тянет за размер.</p>
+                        <p class="hint">Карточки двигаются мышкой и прилипают к сетке, не наезжая друг на друга. Угол тянет за размер.</p>
                     </section>
 
                     <section class="section" x-show="slide.cards.length">
@@ -258,7 +263,9 @@
                                 <label>Размер: <span x-text="selectedCard ? Math.round(selectedCard.w) : ''"></span> px</label>
                                 <input type="range" min="140" max="900" step="10"
                                     :value="selectedCard ? selectedCard.w : 200"
-                                    @input="selectedCard && (selectedCard.w = parseInt($event.target.value))" />
+                                    @input="selectedCard && (slide.equalSize
+                                        ? equalizeCards(parseInt($event.target.value))
+                                        : (selectedCard.w = parseInt($event.target.value)))" />
                             </div>
                             <button class="btn" style="width:100%" @click="centerSelectedX()">↔ Центрировать по горизонтали</button>
                         </section>
@@ -375,16 +382,19 @@
                                 <h2 x-text="slide.heading"></h2>
                             </div>
 
-                            <!-- боковые промо-надписи -->
-                            <div class="side side-left" x-show="slide.showSides">
-                                <span class="v" x-text="slide.sideText"></span>
-                            </div>
-                            <div class="side side-right" x-show="slide.showSides">
-                                <svg class="tg-icon" viewBox="0 0 240 240" aria-hidden="true">
-                                    <circle cx="120" cy="120" r="120" fill="#2AABEE" />
-                                    <path fill="#fff" d="M179 71 L154 175 c-2 8 -7 10 -14 6 l-39 -29 -19 18 c-2 2 -4 4 -8 4 l3 -43 78 -70 c3 -3 -1 -5 -5 -2 l-96 60 -41 -13 c-9 -3 -9 -9 2 -13 l161 -62 c7 -3 14 2 11 14 z" />
-                                </svg>
-                                <span class="v" x-text="slide.tgHandle"></span>
+                            <!-- нижняя полоса: Telegram по центру, призыв + сайт справа -->
+                            <div class="grid-footer" x-show="slide.showSides">
+                                <div class="gf-tg">
+                                    <svg class="tg-icon" viewBox="0 0 240 240" aria-hidden="true">
+                                        <circle cx="120" cy="120" r="120" fill="#2AABEE" />
+                                        <path fill="#fff" d="M179 71 L154 175 c-2 8 -7 10 -14 6 l-39 -29 -19 18 c-2 2 -4 4 -8 4 l3 -43 78 -70 c3 -3 -1 -5 -5 -2 l-96 60 -41 -13 c-9 -3 -9 -9 2 -13 l161 -62 c7 -3 14 2 11 14 z" />
+                                    </svg>
+                                    <span class="tg-handle" x-text="slide.tgHandle"></span>
+                                </div>
+                                <div class="gf-cta">
+                                    <div class="cta-text" x-text="slide.sideText"></div>
+                                    <div class="cta-url" x-text="slide.siteUrl"></div>
+                                </div>
                             </div>
 
                             <template x-for="(c,idx) in slide.cards" :key="c.uid">

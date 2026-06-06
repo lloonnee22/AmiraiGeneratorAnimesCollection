@@ -748,51 +748,66 @@ input[type="color"] {
     text-shadow: 0 4px 18px rgba(0, 0, 0, 0.5);
 }
 
-.side {
+/* нижняя полоса грид-слайда */
+.grid-footer {
     position: absolute;
-    top: 280px;
-    bottom: 72px;
-    width: 96px;
+    left: 56px;
+    right: 56px;
+    bottom: 50px;
+    height: 96px;
+    z-index: 12;
+}
+
+/* Telegram по центру снизу */
+.gf-tg {
+    position: absolute;
+    left: 50%;
+    bottom: 0;
+    transform: translateX(-50%);
     display: flex;
-    flex-direction: column;
     align-items: center;
-    justify-content: center;
-    gap: 22px;
-    z-index: 10;
+    gap: 16px;
 }
 
-.side-left {
-    left: 0;
-}
-
-.side-right {
-    right: 0;
-}
-
-.side .v {
-    writing-mode: vertical-rl;
-    white-space: nowrap;
-    font-size: 30px;
-    font-weight: 900;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: #fff;
-}
-
-.side-left .v {
-    transform: rotate(180deg);
-}
-
-.side-right .v {
-    color: #fff;
-    text-transform: none;
-    letter-spacing: 0.04em;
-}
-
-.side .tg-icon {
-    width: 64px;
-    height: 64px;
+.gf-tg .tg-icon {
+    width: 70px;
+    height: 70px;
     flex-shrink: 0;
+}
+
+.gf-tg .tg-handle {
+    font-size: 36px;
+    font-weight: 900;
+    color: #fff;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+}
+
+/* призыв + красный сайт справа снизу */
+.gf-cta {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    text-align: right;
+}
+
+.gf-cta .cta-text {
+    font-size: 30px;
+    font-weight: 700;
+    color: #fff;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    line-height: 1.1;
+}
+
+.gf-cta .cta-url {
+    margin-top: 8px;
+    font-size: 38px;
+    font-weight: 900;
+    color: var(--brand);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    line-height: 1;
 }
 
 /* ---------- Арт (загруженная картинка) ---------- */
