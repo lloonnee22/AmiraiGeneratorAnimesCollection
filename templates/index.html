@@ -190,6 +190,21 @@
                     </section>
 
                     <section class="section">
+                        <h3>Боковые надписи</h3>
+                        <label class="row" style="gap:6px;cursor:pointer;margin-bottom:8px">
+                            <input type="checkbox" x-model="slide.showSides" @change="autoArrange()" /> Показывать по бокам
+                        </label>
+                        <div class="field">
+                            <label>Слева (призыв)</label>
+                            <input type="text" x-model="slide.sideText" />
+                        </div>
+                        <div class="field">
+                            <label>Справа (Telegram)</label>
+                            <input type="text" x-model="slide.tgHandle" />
+                        </div>
+                    </section>
+
+                    <section class="section">
                         <h3>Раскладка</h3>
                         <div class="field">
                             <label>Колонок: <span x-text="slide.cols"></span></label>
@@ -245,6 +260,7 @@
                                     :value="selectedCard ? selectedCard.w : 200"
                                     @input="selectedCard && (selectedCard.w = parseInt($event.target.value))" />
                             </div>
+                            <button class="btn" style="width:100%" @click="centerSelectedX()">↔ Центрировать по горизонтали</button>
                         </section>
                     </template>
                 </div>
@@ -319,26 +335,30 @@
                         </div>
                     </template>
 
+                    <!-- ЕДИНЫЙ БРЕНДБАР (логотип + URL) — одинаково на ВСЕХ слайдах -->
+                    <div class="brandbar" x-show="slide && (slide.showLogo || slide.showUrl)">
+                        <img class="bb-logo" x-show="slide && slide.showLogo" src="/img/logo.png" alt="" />
+                        <div class="bb-url site-url" x-show="slide && slide.showUrl" x-text="slide.siteUrl"></div>
+                    </div>
+
                     <!-- ТИТУЛЬНЫЙ (обложка) -->
                     <template x-if="slide && slide.type==='title'">
                         <div class="cover">
-                            <div class="cover-top">
-                                <img class="cover-logo" x-show="slide.showLogo" src="/img/logo.png" alt="" />
-                                <div class="site-url" x-show="slide.showUrl" x-text="slide.siteUrl"></div>
-                            </div>
-
                             <div class="cover-number" x-show="slide.showNumber"
                                 :class="'num-pos-'+slide.numPos+' num-'+slide.numStyle"
                                 :style="slide.numStyle==='outline'
                                     ? `-webkit-text-stroke-color:${slide.numColor}`
                                     : `color:${slide.numColor}`">
-                                <span x-text="slide.bigNumber"></span>
-                                <svg class="scribble" x-show="slide.numStyle==='scribble'"
-                                    viewBox="0 0 620 380" preserveAspectRatio="none" aria-hidden="true">
-                                    <path d="M70 250 C30 180 60 90 200 70 C360 48 560 70 560 160 C560 250 420 300 250 300 C120 300 40 250 90 170 C140 95 330 70 470 95"
-                                        fill="none" stroke="#ffffff" stroke-width="9"
-                                        stroke-linecap="round" stroke-linejoin="round" />
-                                </svg>
+                                <template x-for="(ch,i) in numberChars" :key="i">
+                                    <span class="digit">
+                                        <span class="num-char" x-text="ch"></span>
+                                        <svg class="digit-sketch" x-show="slide.numStyle==='scribble' && sketchFor(ch)"
+                                            viewBox="0 0 100 150" preserveAspectRatio="none" aria-hidden="true">
+                                            <path :d="sketchFor(ch)" fill="none" stroke="#ffffff"
+                                                stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" />
+                                        </svg>
+                                    </span>
+                                </template>
                             </div>
 
                             <div class="cover-bottom">
@@ -351,12 +371,20 @@
                     <!-- СЕТКА -->
                     <template x-if="slide && slide.type==='grid'">
                         <div style="position:absolute;inset:0">
-                            <div class="slide-header">
-                                <img x-show="slide.showLogo" src="/img/logo.png" alt="" />
-                                <div class="h-text">
-                                    <h2 x-text="slide.heading"></h2>
-                                </div>
-                                <div class="site-url" x-show="slide.showUrl" x-text="slide.siteUrl"></div>
+                            <div class="grid-heading">
+                                <h2 x-text="slide.heading"></h2>
+                            </div>
+
+                            <!-- боковые промо-надписи -->
+                            <div class="side side-left" x-show="slide.showSides">
+                                <span class="v" x-text="slide.sideText"></span>
+                            </div>
+                            <div class="side side-right" x-show="slide.showSides">
+                                <svg class="tg-icon" viewBox="0 0 240 240" aria-hidden="true">
+                                    <circle cx="120" cy="120" r="120" fill="#2AABEE" />
+                                    <path fill="#fff" d="M179 71 L154 175 c-2 8 -7 10 -14 6 l-39 -29 -19 18 c-2 2 -4 4 -8 4 l3 -43 78 -70 c3 -3 -1 -5 -5 -2 l-96 60 -41 -13 c-9 -3 -9 -9 2 -13 l161 -62 c7 -3 14 2 11 14 z" />
+                                </svg>
+                                <span class="v" x-text="slide.tgHandle"></span>
                             </div>
 
                             <template x-for="(c,idx) in slide.cards" :key="c.uid">

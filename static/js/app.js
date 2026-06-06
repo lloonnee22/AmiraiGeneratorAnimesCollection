@@ -15,6 +15,21 @@ const BG_PRESETS = {
     "Графит": "#1a1a1a",
 };
 
+// Рукописные «наброски» цифр 0-9 в боксе 100x150 — одна свободная линия,
+// которая примерно повторяет цифру, но не идеально (эффект скетча).
+const SKETCH_PATHS = {
+    "0": "M52 14 C26 16 17 50 18 80 C19 116 35 140 55 138 C82 135 85 96 83 64 C81 32 70 16 44 16",
+    "1": "M28 46 C40 40 50 31 58 17 C58 60 57 100 56 134 C56 137 57 138 60 138",
+    "2": "M20 46 C24 22 62 16 78 34 C92 52 68 80 44 104 C30 118 20 130 18 138 C42 138 68 137 88 136",
+    "3": "M22 38 C38 16 76 18 81 43 C85 64 58 71 47 73 C66 73 92 82 85 110 C78 136 36 139 18 116",
+    "4": "M68 16 C49 54 31 88 16 106 C40 106 66 105 86 105 M70 60 C70 92 70 118 71 138",
+    "5": "M80 20 C57 20 39 20 30 22 C28 48 26 64 26 71 C41 60 80 60 83 93 C87 124 44 141 20 118",
+    "6": "M76 24 C51 22 30 52 26 88 C22 122 41 142 59 137 C83 131 84 95 63 90 C44 85 28 102 31 118",
+    "7": "M18 26 C44 24 74 24 88 27 C71 61 53 100 43 138",
+    "8": "M52 16 C30 18 28 50 51 60 C78 71 80 24 50 19 M51 62 C24 67 18 110 51 129 C86 128 80 76 52 62",
+    "9": "M73 72 C73 36 49 27 37 41 C25 55 31 80 53 81 C73 82 77 56 74 41 C74 82 70 118 44 138",
+};
+
 let _uid = 0;
 const uid = () => ++_uid;
 
@@ -116,17 +131,27 @@ function editor() {
                 showCaption: true,
                 bg: BG_PRESETS["Чёрный (бренд)"],
                 cols: 2,
-                gap: 36,
-                pad: 56,
-                headerH: 200,
+                gap: 40,
+                pad: 40,
+                headerH: 280, // верх области карточек (под шапкой/заголовком)
                 cards: [],
                 arts: [],
+                // боковые промо-надписи
+                showSides: true,
+                sideText: "Смотри аниме на нашем сайте",
+                tgHandle: "@AmiraiAnime",
             };
         },
 
         // ---- удобные геттеры ----
         get dims() {
             return FORMATS[this.format];
+        },
+        get numberChars() {
+            return String(this.slide && this.slide.bigNumber != null ? this.slide.bigNumber : "").split("");
+        },
+        sketchFor(ch) {
+            return SKETCH_PATHS[ch] || "";
         },
         get slide() {
             return this.slides[this.current];
@@ -310,23 +335,58 @@ function editor() {
             this.selectedArtUid = art.uid;
         },
 
-        // Авто-раскладка карточек ровной сеткой cols x rows.
-        // Все величины кратны шагу сетки → края карточек ложатся ровно на линии,
-        // а шаг между карточками одинаковый (привязка к сетке + равномерность).
+        // Боковое поле под промо-надписи (грид) или обычный pad.
+        sideMargin(s) {
+            s = s || this.slide;
+            return s.showSides ? 104 : (s.pad || 40);
+        },
+
+        // Безопасная зона для карточек: ниже шапки, выше футера, между боковыми
+        // надписями. На обложке (title) ограничений нет — объекты свободны.
+        contentArea(s) {
+            s = s || this.slide;
+            const { w: W, h: H } = this.dims;
+            if (!s || s.type !== "grid") return { left: 0, top: 0, right: W, bottom: H };
+            const side = this.sideMargin(s);
+            return { left: side, top: s.headerH, right: W - side, bottom: H - 72 };
+        },
+
+        // все перетаскиваемые объекты слайда (карточки + арты)
+        movableEls(s) {
+            s = s || this.slide;
+            return [...(s.cards || []), ...(s.arts || [])];
+        },
+
+        // пересекаются ли два объекта (AABB) при положении (x,y) у obj
+        overlaps(obj, x, y, other) {
+            const h1 = this.elHeight(obj);
+            const w2 = other.w,
+                h2 = this.elHeight(other);
+            return x < other.x + w2 && x + obj.w > other.x && y < other.y + h2 && y + h1 > other.y;
+        },
+
+        // есть ли коллизия obj в точке (x,y) с другими объектами грид-слайда
+        collides(obj, x, y) {
+            if (!this.slide || this.slide.type !== "grid") return false;
+            return this.movableEls().some((o) => o !== obj && this.overlaps(obj, x, y, o));
+        },
+
+        // Авто-раскладка карточек ровной сеткой cols x rows внутри безопасной зоны.
         autoArrange() {
             const s = this.slide;
             if (!s || s.type !== "grid" || !s.cards.length) return;
-            const { w: W } = this.dims;
             const g = this.snap ? this.gridSize : 1;
             const toGrid = (v) => Math.round(v / g) * g;
+            const area = this.contentArea(s);
 
             const cols = Math.max(1, s.cols);
-            const pad = toGrid(s.pad);
             const gap = toGrid(s.gap);
-            const headerH = toGrid(s.headerH);
+            const left = toGrid(area.left);
+            const top = toGrid(area.top);
+            const innerW = area.right - left;
 
             // ширина карточки, округлённая вниз до кратной шагу сетки
-            let cardW = Math.floor((W - 2 * pad - (cols - 1) * gap) / cols);
+            let cardW = Math.floor((innerW - (cols - 1) * gap) / cols);
             cardW = Math.max(g, Math.floor(cardW / g) * g);
 
             // единый шаг по X и Y (кратный сетке) → ряды/колонки равномерны
@@ -338,9 +398,18 @@ function editor() {
                 const col = i % cols;
                 const row = Math.floor(i / cols);
                 card.w = cardW;
-                card.x = pad + col * pitchX;
-                card.y = headerH + row * pitchY;
+                card.x = left + col * pitchX;
+                card.y = top + row * pitchY;
             });
+        },
+
+        // центрировать выделенную карточку по горизонтали в безопасной зоне
+        centerSelectedX() {
+            const c = this.selectedCard;
+            if (!c) return;
+            const a = this.contentArea();
+            const x = this.snapVal((a.left + a.right) / 2 - c.w / 2);
+            if (!this.collides(c, x, c.y)) c.x = x;
         },
 
         // высота элемента в координатах слайда: арт — по своему аспекту,
@@ -378,19 +447,41 @@ function editor() {
             if (!d) return;
             const dx = (e.clientX - d.startX) / this.scale;
             const dy = (e.clientY - d.startY) / this.scale;
-            const { w: W, h: H } = this.dims;
+            const isGrid = this.slide && this.slide.type === "grid";
+            const a = this.contentArea();
+
             if (d.mode === "move") {
+                const oh = this.elHeight(d.obj);
                 let nx = this.snapVal(d.origX + dx);
                 let ny = this.snapVal(d.origY + dy);
-                const oh = this.elHeight(d.obj);
-                nx = Math.max(0, Math.min(nx, W - d.obj.w));
-                ny = Math.max(0, Math.min(ny, H - oh));
-                d.obj.x = nx;
-                d.obj.y = ny;
+                // клампим в безопасную зону (грид) или в пределы слайда (обложка)
+                nx = Math.max(a.left, Math.min(nx, a.right - d.obj.w));
+                ny = Math.max(a.top, Math.min(ny, a.bottom - oh));
+
+                if (isGrid) {
+                    // запрет наложения: пробуем обе оси, затем по одной (скольжение)
+                    if (!this.collides(d.obj, nx, ny)) {
+                        d.obj.x = nx;
+                        d.obj.y = ny;
+                    } else if (!this.collides(d.obj, nx, d.obj.y)) {
+                        d.obj.x = nx;
+                    } else if (!this.collides(d.obj, d.obj.x, ny)) {
+                        d.obj.y = ny;
+                    }
+                } else {
+                    d.obj.x = nx;
+                    d.obj.y = ny;
+                }
             } else {
                 let nw = this.snapVal(d.origW + dx);
-                nw = Math.max(80, Math.min(nw, W));
-                d.obj.w = nw;
+                nw = Math.max(80, Math.min(nw, a.right - d.obj.x));
+                if (isGrid) {
+                    const prev = d.obj.w;
+                    d.obj.w = nw;
+                    if (this.collides(d.obj, d.obj.x, d.obj.y)) d.obj.w = prev; // не лезть в наложение
+                } else {
+                    d.obj.w = nw;
+                }
             }
         },
 

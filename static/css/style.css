@@ -617,25 +617,26 @@ input[type="color"] {
     overflow: hidden;
 }
 
-.cover-top {
+/* единый брендбар (логотип + URL) — ОДНА позиция на всех слайдах */
+.brandbar {
     position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
+    top: 52px;
+    left: 56px;
+    right: 56px;
+    height: 76px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 48px 56px;
-    z-index: 10;
+    z-index: 30;
 }
 
-.cover-logo {
-    width: 84px;
-    height: 84px;
+.brandbar .bb-logo {
+    width: 76px;
+    height: 76px;
     object-fit: contain;
 }
 
-.cover .site-url {
+.brandbar .bb-url {
     font-size: 30px;
     font-weight: 900;
     letter-spacing: 0.12em;
@@ -646,26 +647,44 @@ input[type="color"] {
 .cover-number {
     position: absolute;
     z-index: 5;
+    display: inline-flex;
+    align-items: flex-start;
     font-weight: 900;
-    font-size: 400px;
+    font-size: 380px;
     line-height: 0.78;
     letter-spacing: -0.04em;
     font-variant-numeric: lining-nums;
 }
 
-.cover-number span {
+.cover-number .digit {
+    position: relative;
     display: inline-block;
 }
 
+.cover-number .num-char {
+    display: inline-block;
+}
+
+/* поцифровый скетч — повторяет каждую цифру свободной линией */
+.cover-number .digit-sketch {
+    position: absolute;
+    left: -8%;
+    top: -3%;
+    width: 116%;
+    height: 106%;
+    overflow: visible;
+    pointer-events: none;
+    z-index: 2;
+}
+
 .num-pos-tl {
-    top: 150px;
+    top: 168px;
     left: 56px;
 }
 
 .num-pos-tr {
-    top: 150px;
+    top: 168px;
     right: 56px;
-    text-align: right;
 }
 
 .num-pos-center {
@@ -675,24 +694,13 @@ input[type="color"] {
 }
 
 /* стили цифры */
-.num-outline span {
+.num-outline .num-char {
     color: transparent;
     -webkit-text-stroke-width: 11px;
 }
 
-.num-shadow span {
+.num-shadow .num-char {
     text-shadow: 16px 16px 0 rgba(0, 0, 0, 0.5);
-}
-
-.cover-number .scribble {
-    position: absolute;
-    left: -7%;
-    top: -10%;
-    width: 114%;
-    height: 122%;
-    overflow: visible;
-    pointer-events: none;
-    z-index: 2;
 }
 
 .cover-bottom {
@@ -718,6 +726,73 @@ input[type="color"] {
     font-size: 38px;
     font-weight: 500;
     opacity: 0.85;
+}
+
+/* ---------- Грид-слайд: заголовок и боковые промо ---------- */
+
+.grid-heading {
+    position: absolute;
+    top: 150px;
+    left: 56px;
+    right: 56px;
+    z-index: 10;
+}
+
+.grid-heading h2 {
+    margin: 0;
+    font-size: 60px;
+    font-weight: 900;
+    line-height: 1.04;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    text-shadow: 0 4px 18px rgba(0, 0, 0, 0.5);
+}
+
+.side {
+    position: absolute;
+    top: 280px;
+    bottom: 72px;
+    width: 96px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 22px;
+    z-index: 10;
+}
+
+.side-left {
+    left: 0;
+}
+
+.side-right {
+    right: 0;
+}
+
+.side .v {
+    writing-mode: vertical-rl;
+    white-space: nowrap;
+    font-size: 30px;
+    font-weight: 900;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #fff;
+}
+
+.side-left .v {
+    transform: rotate(180deg);
+}
+
+.side-right .v {
+    color: #fff;
+    text-transform: none;
+    letter-spacing: 0.04em;
+}
+
+.side .tg-icon {
+    width: 64px;
+    height: 64px;
+    flex-shrink: 0;
 }
 
 /* ---------- Арт (загруженная картинка) ---------- */
