@@ -44,6 +44,8 @@ function editor() {
         snap: true,
         showGrid: true,
         gridSize: 40,
+        // реально измеренный прямоугольник слайда (для точного overlay сетки)
+        slideRect: { left: 0, top: 0, w: 0, h: 0 },
 
         // поиск
         query: "",
@@ -121,9 +123,10 @@ function editor() {
             return this.slides[this.current];
         },
         get gridBgScreen() {
-            // overlay сетки в ЭКРАННЫХ px (шаг * масштаб),
-            // чтобы линии 1px были чёткими при любом формате/масштабе
-            const g = Math.max(2, this.gridSize * this.scale);
+            // overlay сетки в ЭКРАННЫХ px (шаг * фактический масштаб слайда),
+            // чтобы линии 1px были чёткими и совпадали с краями карточек
+            const eff = this.slideRect.w ? this.slideRect.w / this.dims.w : this.scale;
+            const g = Math.max(2, this.gridSize * eff);
             return (
                 `linear-gradient(rgba(255,255,255,.14) 1px, transparent 1px) 0 0/${g}px ${g}px,` +
                 `linear-gradient(90deg, rgba(255,255,255,.14) 1px, transparent 1px) 0 0/${g}px ${g}px`
@@ -139,6 +142,17 @@ function editor() {
             const ah = wrap.clientHeight - pad;
             const { w, h } = this.dims;
             this.scale = Math.min(aw / w, ah / h, 1);
+            // Слайд центрируется в wrap идиомой top/left:50% + translate(-50%,-50%),
+            // значит его визуальный центр = центр wrap. Считаем rect аналитически
+            // (без getBoundingClientRect → нет проблем тайминга с transform).
+            const rw = w * this.scale;
+            const rh = h * this.scale;
+            this.slideRect = {
+                left: wrap.clientWidth / 2 - rw / 2,
+                top: wrap.clientHeight / 2 - rh / 2,
+                w: rw,
+                h: rh,
+            };
         },
 
         setFormat(f) {

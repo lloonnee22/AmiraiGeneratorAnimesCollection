@@ -269,10 +269,11 @@
                     </template>
                 </div>
 
-                <!-- сетка в экранном пространстве (поверх слайда, не масштабируется,
-                     поэтому линии видны в любом формате; в экспорт не попадает) -->
+                <!-- сетка поверх слайда: позиция/размер берутся из реально
+                     измеренного rect слайда → линии точно совпадают с его
+                     координатами и краями карточек; в экспорт не попадает -->
                 <div class="grid-overlay-screen" x-show="showGrid"
-                    :style="`width:${dims.w*scale}px;height:${dims.h*scale}px;background:${gridBgScreen}`"></div>
+                    :style="`left:${slideRect.left}px;top:${slideRect.top}px;width:${slideRect.w}px;height:${slideRect.h}px;background:${gridBgScreen}`"></div>
             </div>
 
             <!-- ================= ЛЕНТА СЛАЙДОВ ================= -->
