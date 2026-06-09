@@ -459,6 +459,20 @@ input[type="color"] {
     padding: 5px 7px;
 }
 
+.card-row .rank-input {
+    flex: 0 0 auto;
+    width: 48px;
+    text-align: center;
+    padding: 5px 4px;
+    background: var(--panel-3);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+}
+
+.card-row .rank-input:focus {
+    border-color: var(--brand);
+}
+
 .hint {
     font-size: 11px;
     color: var(--muted);
@@ -634,7 +648,9 @@ input[type="color"] {
     right: 56px;
     min-height: 76px;
     display: flex;
-    align-items: center;
+    /* прижимаем к верху: AMIRAI.ONLINE оказывается на ОДНОЙ высоте
+       на всех слайдах (призыв сверху, сайт строго под ним) */
+    align-items: flex-start;
     justify-content: space-between;
     gap: 24px;
     z-index: 30;

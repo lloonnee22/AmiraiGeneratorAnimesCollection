@@ -60,6 +60,9 @@ function editor() {
         current: 0,
         scale: 1,
 
+        // единая ширина карточек для ВСЕХ грид-слайдов
+        globalCardW: 300,
+
         // сетка / привязка
         snap: true,
         showGrid: true,
@@ -132,6 +135,7 @@ function editor() {
                 gridSize: this.gridSize,
                 snap: this.snap,
                 showGrid: this.showGrid,
+                globalCardW: this.globalCardW,
                 slides: this.slides,
             };
         },
@@ -170,12 +174,27 @@ function editor() {
                 JSON.stringify(data.slides).replace(/amiria\.online/gi, "amirai.online")
             );
 
+            // Миграция: у карточек без ручного номера проставляем порядковый,
+            // у титульных слайдов — призыв (теперь он есть и на титуле).
+            data.slides.forEach((s) => {
+                if (s.type === "grid" && Array.isArray(s.cards)) {
+                    s.cards.forEach((c, i) => {
+                        if (c.rank == null) c.rank = i + 1;
+                    });
+                }
+                if (s.type === "title") {
+                    if (typeof s.showSides !== "boolean") s.showSides = true;
+                    if (s.sideText == null) s.sideText = "Смотри аниме на нашем сайте";
+                }
+            });
+
             this.slides = data.slides;
             this.format = data.format || "9:16";
             this.current = Math.min(data.current || 0, this.slides.length - 1);
             if (typeof data.gridSize === "number") this.gridSize = data.gridSize;
             if (typeof data.snap === "boolean") this.snap = data.snap;
             if (typeof data.showGrid === "boolean") this.showGrid = data.showGrid;
+            if (typeof data.globalCardW === "number") this.globalCardW = data.globalCardW;
 
             // сдвинуть счётчик uid выше всех загруженных id
             this.slides.forEach((s) => {
@@ -211,6 +230,9 @@ function editor() {
                 showLogo: true,
                 showUrl: true,
                 siteUrl: "amirai.online",
+                // призыв над сайтом — общий брендбар с грид-слайдами
+                showSides: true,
+                sideText: "Смотри аниме на нашем сайте",
                 bg: BG_PRESETS["Чёрный (бренд)"],
                 // крупная цифра-обложка
                 showNumber: true,
@@ -343,19 +365,20 @@ function editor() {
                 poster,
                 x: 0,
                 y: 0,
-                w: 300,
+                w: this.globalCardW,
+                rank: this.slide.cards.length + 1, // номер по умолчанию, можно менять вручную
             };
             this.slide.cards.push(card);
             this.selectedCardUid = card.uid;
             preload(poster);
-            this.autoArrange(); // аккуратно разложить по сетке
+            this.layoutAll(this.globalCardW); // разложить, сохранив текущий размер
         },
 
         removeCard(cardUid) {
             const s = this.slide;
             s.cards = s.cards.filter((c) => c.uid !== cardUid);
             if (this.selectedCardUid === cardUid) this.selectedCardUid = null;
-            this.autoArrange();
+            this.layoutAll(this.globalCardW);
         },
 
         // Перестановка карточек в списке: перенести с from на target,
@@ -368,7 +391,7 @@ function editor() {
             const arr = this.slide.cards;
             const [moved] = arr.splice(from, 1);
             arr.splice(target, 0, moved);
-            this.autoArrange();
+            this.layoutAll(this.globalCardW);
         },
 
         get selectedCard() {
@@ -472,52 +495,73 @@ function editor() {
             return this.movableEls().some((o) => o !== obj && this.overlaps(obj, x, y, o));
         },
 
-        // Авто-раскладка карточек ровной сеткой cols x rows внутри безопасной зоны.
-        // Ширина подбирается так, чтобы ВСЕ ряды влезли по высоте (карточки не
-        // уезжают за экран) и по ширине. Все карточки одного размера.
-        autoArrange() {
-            const s = this.slide;
+        // Максимальная ширина карточки, помещающаяся на КОНКРЕТНОМ грид-слайде
+        // (по ширине и по высоте безопасной зоны).
+        fitWidthFor(s) {
+            const g = this.snap ? this.gridSize : 1;
+            const toGrid = (v) => Math.round(v / g) * g;
+            const area = this.contentArea(s);
+            const cols = Math.max(1, s.cols);
+            const rows = Math.max(1, Math.ceil((s.cards ? s.cards.length : 1) / cols));
+            const gap = toGrid(s.gap);
+            const innerW = area.right - toGrid(area.left);
+            const innerH = area.bottom - toGrid(area.top);
+            const hFactor = 1.5 + (s.showCaption ? 0.22 : 0);
+            const wByWidth = (innerW - (cols - 1) * gap) / cols;
+            const wByHeight = (innerH - (rows - 1) * gap) / rows / hFactor;
+            const cardW = Math.floor(Math.min(wByWidth, wByHeight));
+            return Math.max(g, Math.floor(cardW / g) * g);
+        },
+
+        // Единая ширина карточек для ВСЕХ грид-слайдов: берём минимум из
+        // «влезающих» ширин — тогда выбранный размер не вылезает ни на одном слайде.
+        maxUniformW() {
+            const widths = this.slides
+                .filter((s) => s.type === "grid" && s.cards && s.cards.length)
+                .map((s) => this.fitWidthFor(s));
+            return widths.length ? Math.min(...widths) : this.globalCardW;
+        },
+
+        // Разложить карточки одного слайда ровной сеткой cols x rows при ширине W.
+        arrangeSlide(s, W) {
             if (!s || s.type !== "grid" || !s.cards.length) return;
             const g = this.snap ? this.gridSize : 1;
             const toGrid = (v) => Math.round(v / g) * g;
             const area = this.contentArea(s);
-
             const cols = Math.max(1, s.cols);
-            const rows = Math.ceil(s.cards.length / cols);
             const gap = toGrid(s.gap);
             const left = toGrid(area.left);
             const top = toGrid(area.top);
-            const innerW = area.right - left;
-            const innerH = area.bottom - top;
-
-            // высота карточки = w * (постер 1.5 + подпись 0.22)
             const hFactor = 1.5 + (s.showCaption ? 0.22 : 0);
-
-            // ширина по ограничению ширины и по ограничению высоты — берём минимум
-            const wByWidth = (innerW - (cols - 1) * gap) / cols;
-            const wByHeight = (innerH - (rows - 1) * gap) / rows / hFactor;
-            let cardW = Math.floor(Math.min(wByWidth, wByHeight));
-            cardW = Math.max(g, Math.floor(cardW / g) * g);
-
-            const pitchX = cardW + gap;
-            const rowH = toGrid(cardW * hFactor);
-            const pitchY = rowH + gap;
-
+            const pitchX = W + gap;
+            const pitchY = toGrid(W * hFactor) + gap;
             s.cards.forEach((card, i) => {
-                const col = i % cols;
-                const row = Math.floor(i / cols);
-                card.w = cardW;
-                card.x = left + col * pitchX;
-                card.y = top + row * pitchY;
+                card.w = W;
+                card.x = left + (i % cols) * pitchX;
+                card.y = top + Math.floor(i / cols) * pitchY;
             });
         },
 
-        // Уравнять размеры всех карточек и переразложить (для «одинакового размера»).
+        // Раскладка с ОДИНАКОВЫМ размером карточек на всех слайдах.
+        // targetW — желаемая ширина (от слайдера/ресайза); без неё — авто-максимум.
+        // В любом случае не больше, чем влезает на самый «тесный» слайд.
+        layoutAll(targetW) {
+            const g = this.snap ? this.gridSize : 1;
+            const maxW = this.maxUniformW();
+            let W = targetW ? Math.round(targetW) : maxW;
+            W = Math.min(W, maxW); // не вылезаем ни на одном слайде
+            W = Math.max(g, Math.floor(W / g) * g);
+            this.globalCardW = W;
+            this.slides.forEach((s) => this.arrangeSlide(s, W));
+        },
+
+        // Совместимость со старыми вызовами из шаблона.
+        // autoArrange — авто-подгон под максимум; equalizeCards — явная ширина.
+        autoArrange() {
+            this.layoutAll();
+        },
         equalizeCards(w) {
-            const s = this.slide;
-            if (!s || !s.cards) return;
-            if (w) s.cards.forEach((c) => (c.w = w));
-            this.autoArrange();
+            this.layoutAll(w);
         },
 
         // Подтянуть все карточки/арты слайда внутрь безопасной зоны (после смены формата).
@@ -580,15 +624,15 @@ function editor() {
             const a = this.contentArea();
 
             if (d.mode === "move") {
-                const oh = this.elHeight(d.obj);
                 let nx = this.snapVal(d.origX + dx);
                 let ny = this.snapVal(d.origY + dy);
-                // клампим в безопасную зону (грид) или в пределы слайда (обложка)
-                nx = Math.max(a.left, Math.min(nx, a.right - d.obj.w));
-                ny = Math.max(a.top, Math.min(ny, a.bottom - oh));
 
                 if (isGrid) {
-                    // запрет наложения: пробуем обе оси, затем по одной (скольжение)
+                    // грид: клампим в безопасную зону + запрет наложения
+                    const oh = this.elHeight(d.obj);
+                    nx = Math.max(a.left, Math.min(nx, a.right - d.obj.w));
+                    ny = Math.max(a.top, Math.min(ny, a.bottom - oh));
+                    // пробуем обе оси, затем по одной (скольжение)
                     if (!this.collides(d.obj, nx, ny)) {
                         d.obj.x = nx;
                         d.obj.y = ny;
@@ -598,18 +642,20 @@ function editor() {
                         d.obj.y = ny;
                     }
                 } else {
+                    // титул/обложка: без ограничений — арт можно вынести за край (bleed)
                     d.obj.x = nx;
                     d.obj.y = ny;
                 }
             } else {
                 let nw = this.snapVal(d.origW + dx);
-                nw = Math.max(80, Math.min(nw, a.right - d.obj.x));
                 if (isGrid) {
+                    nw = Math.max(80, Math.min(nw, a.right - d.obj.x));
                     const prev = d.obj.w;
                     d.obj.w = nw;
                     if (this.collides(d.obj, d.obj.x, d.obj.y)) d.obj.w = prev; // не лезть в наложение
                 } else {
-                    d.obj.w = nw;
+                    // титул/обложка: без верхнего ограничения — арт может быть больше кадра
+                    d.obj.w = Math.max(40, nw);
                 }
             }
         },
@@ -617,10 +663,10 @@ function editor() {
         onPointerUp() {
             const d = this.dragInfo;
             this.dragInfo = null;
-            // при «одинаковом размере» ресайз одной карточки уравнивает все
+            // ресайз одной карточки уравнивает размер на ВСЕХ слайдах
             if (d && d.mode === "resize" && d.obj.kind !== "art" &&
-                this.slide && this.slide.type === "grid" && this.slide.equalSize) {
-                this.equalizeCards(d.obj.w);
+                this.slide && this.slide.type === "grid") {
+                this.layoutAll(d.obj.w);
             }
         },
 

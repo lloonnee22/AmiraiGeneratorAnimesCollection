@@ -113,12 +113,19 @@
                             <input type="text" x-model="slide.subtitle" />
                         </div>
                         <div class="field">
+                            <label>Призыв (сверху, над сайтом)</label>
+                            <input type="text" x-model="slide.sideText" />
+                        </div>
+                        <div class="field">
                             <label>Ссылка на сайт</label>
                             <input type="text" x-model="slide.siteUrl" />
                         </div>
-                        <div class="row" style="gap:16px">
+                        <div class="row" style="gap:16px;flex-wrap:wrap">
                             <label class="row" style="gap:6px;cursor:pointer">
                                 <input type="checkbox" x-model="slide.showLogo" /> Логотип
+                            </label>
+                            <label class="row" style="gap:6px;cursor:pointer">
+                                <input type="checkbox" x-model="slide.showSides" /> Призыв
                             </label>
                             <label class="row" style="gap:6px;cursor:pointer">
                                 <input type="checkbox" x-model="slide.showUrl" /> URL
@@ -210,10 +217,7 @@
 
                     <section class="section">
                         <h3>Раскладка</h3>
-                        <label class="row" style="gap:6px;cursor:pointer;margin-bottom:10px">
-                            <input type="checkbox" x-model="slide.equalSize" @change="slide.equalSize && autoArrange()" />
-                            Все карточки одного размера
-                        </label>
+                        <p class="hint" style="margin:0 0 10px">Размер карточек общий для всех слайдов — задаётся ползунком «Размер» или углом карточки.</p>
                         <div class="field">
                             <label>Колонок: <span x-text="slide.cols"></span></label>
                             <input type="range" min="1" max="4" step="1" x-model.number="slide.cols"
@@ -250,7 +254,8 @@
                                     @drop.prevent="dropCard(idx)"
                                     @dragend="cardDragIdx=null; cardOverIdx=null">
                                     <span class="drag-handle" title="Перетащи, чтобы поменять местами">⠿</span>
-                                    <span class="muted" x-text="idx+1"></span>
+                                    <input type="number" class="rank-input" x-model.number="c.rank"
+                                        @click.stop draggable="false" title="Номер на карточке (можно менять)" />
                                     <img :src="c.poster" alt="" draggable="false" />
                                     <input type="text" x-model="c.name" @click.stop draggable="false" />
                                     <button class="btn btn-icon btn-sm" @click.stop="removeCard(c.uid)" title="Удалить">✕</button>
@@ -263,12 +268,10 @@
                         <section class="section">
                             <h3>Выбранная карточка</h3>
                             <div class="field">
-                                <label>Размер: <span x-text="selectedCard ? Math.round(selectedCard.w) : ''"></span> px</label>
+                                <label>Размер (общий для всех слайдов): <span x-text="Math.round(globalCardW)"></span> px</label>
                                 <input type="range" min="140" max="900" step="10"
-                                    :value="selectedCard ? selectedCard.w : 200"
-                                    @input="selectedCard && (slide.equalSize
-                                        ? equalizeCards(parseInt($event.target.value))
-                                        : (selectedCard.w = parseInt($event.target.value)))" />
+                                    :value="globalCardW"
+                                    @input="equalizeCards(parseInt($event.target.value))" />
                             </div>
                             <button class="btn" style="width:100%" @click="centerSelectedX()">↔ Центрировать по горизонтали</button>
                         </section>
@@ -303,7 +306,7 @@
                     <template x-if="selectedArt">
                         <div class="field" style="margin-top:10px">
                             <label>Размер арта: <span x-text="selectedArt ? Math.round(selectedArt.w) : ''"></span> px</label>
-                            <input type="range" min="80" max="1080" step="10"
+                            <input type="range" min="80" max="2160" step="10"
                                 :value="selectedArt ? selectedArt.w : 300"
                                 @input="selectedArt && (selectedArt.w = parseInt($event.target.value))" />
                         </div>
@@ -345,11 +348,13 @@
                         </div>
                     </template>
 
-                    <!-- ЕДИНЫЙ БРЕНДБАР: логотип слева, справа призыв (на гриде) + сайт -->
-                    <div class="brandbar" x-show="slide && (slide.showLogo || slide.showUrl || (slide.type==='grid' && slide.showSides))">
+                    <!-- ЕДИНЫЙ БРЕНДБАР: логотип слева, справа призыв + сайт.
+                         Одна и та же позиция на ВСЕХ слайдах (титул + грид):
+                         призыв сверху, AMIRAI.ONLINE строго под ним. -->
+                    <div class="brandbar" x-show="slide && (slide.showLogo || slide.showUrl || slide.showSides)">
                         <img class="bb-logo" x-show="slide && slide.showLogo" src="/img/logo.png" alt="" />
                         <div class="bb-right">
-                            <div class="bb-cta" x-show="slide && slide.type==='grid' && slide.showSides"
+                            <div class="bb-cta" x-show="slide && slide.showSides && slide.sideText"
                                 x-text="slide.sideText"></div>
                             <div class="bb-url site-url" x-show="slide && slide.showUrl" x-text="slide.siteUrl"></div>
                         </div>
@@ -404,7 +409,7 @@
                                     @pointerdown.stop="startDrag($event, c, 'move')">
                                     <div class="rank" x-show="slide.showRank"
                                         :style="`font-size:${c.w*0.16}px;min-width:${c.w*0.2}px;height:${c.w*0.2}px`"
-                                        x-text="idx+1"></div>
+                                        x-text="c.rank != null ? c.rank : (idx+1)"></div>
                                     <img class="poster" :src="c.poster" alt="" crossorigin="anonymous" />
                                     <div class="caption" x-show="slide.showCaption"
                                         :style="`height:${c.w*0.22}px;font-size:${Math.round(c.w*0.085)}px`"
