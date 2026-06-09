@@ -888,6 +888,15 @@ input[type="color"] {
     outline-offset: 0;
 }
 
+/* рамка выделения зажатым ЛКМ */
+.marquee {
+    position: absolute;
+    z-index: 40;
+    border: 2px dashed var(--brand);
+    background: rgba(255, 51, 51, 0.12);
+    pointer-events: none;
+}
+
 .acard .poster {
     width: 100%;
     aspect-ratio: 2 / 3;

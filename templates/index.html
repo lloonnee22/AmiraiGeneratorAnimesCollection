@@ -201,12 +201,7 @@
 
                     <section class="section">
                         <h3>Раскладка</h3>
-                        <p class="hint" style="margin:0 0 10px">Размер карточек общий для всех слайдов — задаётся ползунком «Размер» или углом карточки.</p>
-                        <div class="field">
-                            <label>Колонок: <span x-text="slide.cols"></span></label>
-                            <input type="range" min="1" max="4" step="1" x-model.number="slide.cols"
-                                @input="autoArrange()" />
-                        </div>
+                        <p class="hint" style="margin:0 0 10px">Колонки считаются автоматически (макс 3 в ширину, макс 6 карточек). Размер общий для всех слайдов.</p>
                         <div class="field">
                             <label>Отступ между: <span x-text="slide.gap"></span> px</label>
                             <input type="range" min="0" max="120" step="4" x-model.number="slide.gap"
@@ -223,7 +218,7 @@
                                 @input="autoArrange()" />
                         </div>
                         <button class="btn btn-primary" style="width:100%" @click="autoArrange()">⊞ Выровнять ровно по центру</button>
-                        <p class="hint">Карточки выравниваются идеально ровно: ряды по центру, равные отступы, одинаковый размер. Между выравниваниями двигаются мышкой свободно, угол тянет за размер.</p>
+                        <p class="hint">Ряды по центру, равные отступы, одинаковый размер. Двигай мышкой свободно, угол тянет размер. Зажми ЛКМ на пустом месте — выдели рамкой несколько карточек (двигаются вместе, Delete — удалить).</p>
                     </section>
 
                     <section class="section" x-show="slide.cards.length">
@@ -314,7 +309,7 @@
             </div>
 
             <div class="stage-canvas-wrap" x-ref="canvasWrap"
-                @pointerdown.self="selectedCardUid=null; selectedArtUid=null">
+                @pointerdown.self="selectedCardUid=null; selectedCardUids=[]; selectedArtUid=null">
 
                 <!-- ПОЛНОРАЗМЕРНЫЙ СЛАЙД -->
                 <div class="slide" x-ref="slideNode" :class="{exporting: exporting}"
@@ -375,11 +370,16 @@
 
                     <!-- СЕТКА -->
                     <template x-if="slide && slide.type==='grid'">
-                        <div style="position:absolute;inset:0">
+                        <div style="position:absolute;inset:0"
+                            @pointerdown.self="startMarquee($event)">
+
+                            <!-- рамка выделения (зажатый ЛКМ по пустому месту) -->
+                            <div class="marquee" x-show="marquee"
+                                :style="`left:${marqueeRect.left}px;top:${marqueeRect.top}px;width:${marqueeRect.w}px;height:${marqueeRect.h}px`"></div>
 
                             <template x-for="(c,idx) in slide.cards" :key="c.uid">
                                 <div class="acard"
-                                    :class="{selected: c.uid===selectedCardUid, dragging: dragInfo && dragInfo.obj===c}"
+                                    :class="{selected: selectedCardUids.includes(c.uid), dragging: dragInfo && dragInfo.obj===c}"
                                     :style="`left:${c.x}px;top:${c.y}px;width:${c.w}px`"
                                     @pointerdown.stop="startDrag($event, c, 'move')"
                                     @contextmenu.prevent="startReplace(c.uid)">

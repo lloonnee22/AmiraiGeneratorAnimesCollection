@@ -36,7 +36,11 @@ const bumpUid = (n) => {
     if (typeof n === "number" && n > _uid) _uid = n;
 };
 
-const STORAGE_KEY = "amirai-podborka-v1";
+// Версия в ключе: подняли до v2 → старые сохранения игнорируются,
+// приложение стартует с чистого листа (полный сброс localStorage).
+const STORAGE_KEY = "amirai-podborka-v2";
+const MAX_CARDS = 6; // максимум карточек на одном слайде
+const MAX_COLS = 3; // максимум карточек в ширину
 
 // Проксированный URL постера (чтобы canvas не «портился» CORS-ом).
 const proxied = (url) => (url ? "/api/image?url=" + encodeURIComponent(url) : "");
@@ -73,8 +77,10 @@ function editor() {
 
         // выделение карточки / арта
         selectedCardUid: null,
+        selectedCardUids: [], // мультивыделение рамкой
         selectedArtUid: null,
         dragInfo: null,
+        marquee: null, // рамка выделения зажатым ЛКМ {x0,y0,x,y}
 
         // перестановка карточек в списке (drag&drop)
         cardDragIdx: null,
@@ -93,6 +99,10 @@ function editor() {
 
         // ------------------------------------------------------
         init() {
+            // подчищаем старые версии хранилища (полный сброс кэша)
+            try {
+                localStorage.removeItem("amirai-podborka-v1");
+            } catch (e) {}
             if (!this.loadFromStorage()) {
                 // Стартовый набор: титульный слайд + один слайд-сетка.
                 this.slides = [
@@ -106,6 +116,16 @@ function editor() {
             // глобальные обработчики drag
             window.addEventListener("pointermove", (e) => this.onPointerMove(e));
             window.addEventListener("pointerup", () => this.onPointerUp());
+            // Delete — удалить выделенные рамкой карточки (если не в поле ввода)
+            window.addEventListener("keydown", (e) => {
+                if (e.key !== "Delete") return;
+                const t = document.activeElement;
+                if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA")) return;
+                if (this.selectedCardUids.length) {
+                    e.preventDefault();
+                    this.removeSelectedCards();
+                }
+            });
 
             // автосохранение: реактивный эффект следит за состоянием и пишет в
             // localStorage с задержкой (debounce). Во время перетаскивания не
@@ -335,6 +355,10 @@ function editor() {
                 this.showToast("Добавьте карточки на слайд-сетку");
                 return;
             }
+            if (this.slide.cards.length >= MAX_CARDS) {
+                this.showToast(`Максимум ${MAX_CARDS} карточек на слайде`);
+                return;
+            }
             const poster = proxied(anime.poster_original || anime.poster_preview);
             const card = {
                 uid: uid(),
@@ -386,6 +410,18 @@ function editor() {
             const s = this.slide;
             s.cards = s.cards.filter((c) => c.uid !== cardUid);
             if (this.selectedCardUid === cardUid) this.selectedCardUid = null;
+            this.selectedCardUids = this.selectedCardUids.filter((u) => u !== cardUid);
+            this.layoutAll(this.globalCardW);
+        },
+
+        // удалить все выделённые рамкой карточки (клавиша Delete)
+        removeSelectedCards() {
+            const s = this.slide;
+            if (!s || s.type !== "grid" || !this.selectedCardUids.length) return;
+            const set = new Set(this.selectedCardUids);
+            s.cards = s.cards.filter((c) => !set.has(c.uid));
+            this.selectedCardUids = [];
+            this.selectedCardUid = null;
             this.layoutAll(this.globalCardW);
         },
 
@@ -409,6 +445,7 @@ function editor() {
 
         selectCard(cardUid) {
             this.selectedCardUid = cardUid;
+            this.selectedCardUids = [cardUid];
         },
 
         cardHeight(card, slide) {
@@ -493,11 +530,18 @@ function editor() {
             return 1.5 + (s.showCaption ? 0.22 : 0);
         },
 
+        // Колонки считаются автоматически по числу карточек:
+        // 1→1, 2→2, 3→3, дальше максимум 3 в ширину (4..6 карточек → 3 колонки).
+        colsFor(s) {
+            const n = (s.cards ? s.cards.length : 0) || 1;
+            return Math.min(MAX_COLS, n);
+        },
+
         // Максимальная ширина карточки, помещающаяся на КОНКРЕТНОМ грид-слайде
         // (по ширине и по высоте безопасной зоны).
         fitWidthFor(s) {
             const area = this.contentArea(s);
-            const cols = Math.max(1, s.cols);
+            const cols = this.colsFor(s);
             const rows = Math.max(1, Math.ceil((s.cards ? s.cards.length : 1) / cols));
             const gap = s.gap;
             const innerW = area.right - area.left;
@@ -522,7 +566,7 @@ function editor() {
         arrangeSlide(s, W) {
             if (!s || s.type !== "grid" || !s.cards.length) return;
             const area = this.contentArea(s);
-            const cols = Math.max(1, s.cols);
+            const cols = this.colsFor(s);
             const gap = s.gap;
             const n = s.cards.length;
             const rows = Math.ceil(n / cols);
@@ -592,21 +636,86 @@ function editor() {
             return this.cardHeight(obj);
         },
 
+        // ---- выделение рамкой (зажатый ЛКМ по пустому месту слайда) ----
+        // координаты указателя в системе координат слайда (с учётом масштаба)
+        pointerToSlide(e) {
+            const node = this.$refs.slideNode;
+            const r = node.getBoundingClientRect();
+            return {
+                x: (e.clientX - r.left) / this.scale,
+                y: (e.clientY - r.top) / this.scale,
+            };
+        },
+
+        startMarquee(e) {
+            if (e.button !== undefined && e.button !== 0) return;
+            if (!this.slide || this.slide.type !== "grid") return;
+            this.selectedArtUid = null;
+            const p = this.pointerToSlide(e);
+            this.marquee = { x0: p.x, y0: p.y, x: p.x, y: p.y };
+            this.selectedCardUids = [];
+            this.selectedCardUid = null;
+        },
+
+        // прямоугольник рамки в координатах слайда
+        get marqueeRect() {
+            const m = this.marquee;
+            if (!m) return { left: 0, top: 0, w: 0, h: 0 };
+            return {
+                left: Math.min(m.x0, m.x),
+                top: Math.min(m.y0, m.y),
+                w: Math.abs(m.x - m.x0),
+                h: Math.abs(m.y - m.y0),
+            };
+        },
+
+        updateMarquee(e) {
+            const p = this.pointerToSlide(e);
+            this.marquee.x = p.x;
+            this.marquee.y = p.y;
+            const r = this.marqueeRect;
+            // выделяем карточки, чьи прямоугольники пересекаются с рамкой
+            this.selectedCardUids = (this.slide.cards || [])
+                .filter((c) => {
+                    const ch = this.elHeight(c);
+                    return (
+                        r.left < c.x + c.w &&
+                        r.left + r.w > c.x &&
+                        r.top < c.y + ch &&
+                        r.top + r.h > c.y
+                    );
+                })
+                .map((c) => c.uid);
+            this.selectedCardUid = this.selectedCardUids[0] || null;
+        },
+
         // ---- drag & resize (общий для карточек и артов) ----
         startDrag(e, obj, mode, kind = "card") {
             if (e.button !== undefined && e.button !== 0) return;
+            let group = null;
             if (kind === "art") {
                 this.selectedArtUid = obj.uid;
                 this.selectedCardUid = null;
+                this.selectedCardUids = [];
                 this.bringFrontArt(obj);
             } else {
-                this.selectedCardUid = obj.uid;
                 this.selectedArtUid = null;
-                this.bringFront(obj);
+                // если тащим карточку из мультивыделения — двигаем всю группу,
+                // иначе выделяем только её
+                if (mode === "move" && this.selectedCardUids.includes(obj.uid) && this.selectedCardUids.length > 1) {
+                    group = this.slide.cards
+                        .filter((c) => this.selectedCardUids.includes(c.uid))
+                        .map((c) => ({ obj: c, origX: c.x, origY: c.y }));
+                } else {
+                    this.selectedCardUid = obj.uid;
+                    this.selectedCardUids = [obj.uid];
+                    this.bringFront(obj);
+                }
             }
             this.dragInfo = {
                 obj,
                 mode, // 'move' | 'resize'
+                group, // [{obj,origX,origY}] при перемещении группы
                 startX: e.clientX,
                 startY: e.clientY,
                 origX: obj.x,
@@ -616,6 +725,10 @@ function editor() {
         },
 
         onPointerMove(e) {
+            if (this.marquee) {
+                this.updateMarquee(e);
+                return;
+            }
             const d = this.dragInfo;
             if (!d) return;
             const dx = (e.clientX - d.startX) / this.scale;
@@ -624,9 +737,17 @@ function editor() {
             const a = this.contentArea();
 
             if (d.mode === "move") {
+                if (d.group) {
+                    // двигаем всю группу синхронно, держим каждую внутри кадра
+                    d.group.forEach((g) => {
+                        const oh = this.elHeight(g.obj);
+                        g.obj.x = Math.max(a.left, Math.min(Math.round(g.origX + dx), a.right - g.obj.w));
+                        g.obj.y = Math.max(a.top, Math.min(Math.round(g.origY + dy), a.bottom - oh));
+                    });
+                    return;
+                }
                 let nx = Math.round(d.origX + dx);
                 let ny = Math.round(d.origY + dy);
-
                 if (isGrid) {
                     // грид: свободное плавное перемещение, держим внутри кадра
                     const oh = this.elHeight(d.obj);
@@ -649,6 +770,10 @@ function editor() {
         },
 
         onPointerUp() {
+            if (this.marquee) {
+                this.marquee = null;
+                return;
+            }
             const d = this.dragInfo;
             this.dragInfo = null;
             // ресайз одной карточки уравнивает размер на ВСЕХ слайдах
@@ -695,6 +820,7 @@ function editor() {
         selectSlide(i) {
             this.current = i;
             this.selectedCardUid = null;
+            this.selectedCardUids = [];
         },
 
         // ---- экспорт ----
@@ -806,7 +932,7 @@ function editor() {
                 }
             });
             // editor-only элементы не нужны в экспорте
-            root.querySelectorAll(".grid-overlay, .resize-handle").forEach((n) => n.remove());
+            root.querySelectorAll(".grid-overlay, .resize-handle, .marquee").forEach((n) => n.remove());
         },
 
         downloadDataUrl(dataUrl, filename) {
